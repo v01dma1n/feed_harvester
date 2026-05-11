@@ -12,6 +12,7 @@ def build_scheduler(app) -> AsyncIOScheduler:
         fetcher.fetch_all_accounts,
         trigger="interval",
         minutes=config.FETCH_INTERVAL_MINUTES,
+        jitter=config.FETCH_INTERVAL_JITTER_MINUTES * 60,
         id="fetch_job",
         name="Tweet fetch",
         max_instances=1,

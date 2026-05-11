@@ -35,7 +35,11 @@ TELEGRAM_CHAT_ID = int(_require("TELEGRAM_CHAT_ID"))
 
 DIGEST_HOUR = int(os.getenv("DIGEST_HOUR", "8"))
 FETCH_INTERVAL_MINUTES = int(os.getenv("FETCH_INTERVAL_MINUTES", "30"))
+FETCH_INTERVAL_JITTER_MINUTES = int(os.getenv("FETCH_INTERVAL_JITTER_MINUTES", "5"))
 MAX_TWEETS_PER_FETCH = int(os.getenv("MAX_TWEETS_PER_FETCH", "20"))
+MIN_TWEETS_PER_FETCH = int(os.getenv("MIN_TWEETS_PER_FETCH", "15"))
+QUIET_HOUR_START = int(os.getenv("QUIET_HOUR_START", "1"))
+QUIET_HOUR_END = int(os.getenv("QUIET_HOUR_END", "6"))
 
 ACCOUNTS: list[str] = [
     a.strip() for a in os.getenv("ACCOUNTS", "karpathy,edzitron,raydalio,dhh").split(",") if a.strip()

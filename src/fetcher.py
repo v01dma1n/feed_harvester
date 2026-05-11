@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import os
+import random
+from datetime import datetime
 from twikit import Client
 from twikit.user import User
 from twikit.x_client_transaction.transaction import ClientTransaction
@@ -114,18 +116,31 @@ def _tweet_url(handle: str, tweet_id: str) -> str:
     return f"https://x.com/{handle}/status/{tweet_id}"
 
 
+def _is_quiet_hours() -> bool:
+    hour = datetime.now().hour
+    start, end = config.QUIET_HOUR_START, config.QUIET_HOUR_END
+    if start < end:
+        return start <= hour < end
+    return hour >= start or hour < end
+
+
+def _random_count() -> int:
+    return random.randint(config.MIN_TWEETS_PER_FETCH, config.MAX_TWEETS_PER_FETCH)
+
+
 async def fetch_account(handle: str) -> int:
+    count = _random_count()
     try:
         client = await _get_client()
         user = await client.get_user_by_screen_name(handle)
-        tweets = await user.get_tweets("Tweets", count=config.MAX_TWEETS_PER_FETCH)
+        tweets = await user.get_tweets("Tweets", count=count)
     except Exception as e:
         if any(kw in str(e).lower() for kw in ("cookie", "auth", "session")):
             logger.warning("Session error for @%s, retrying with fresh login: %s", handle, e)
             try:
                 client = await _login_fresh()
                 user = await client.get_user_by_screen_name(handle)
-                tweets = await user.get_tweets("Tweets", count=config.MAX_TWEETS_PER_FETCH)
+                tweets = await user.get_tweets("Tweets", count=count)
             except Exception as e2:
                 logger.error("Fetch failed for @%s after re-login: %s", handle, e2)
                 return 0
@@ -150,7 +165,11 @@ async def fetch_account(handle: str) -> int:
 
 
 async def fetch_all_accounts() -> None:
+    if _is_quiet_hours():
+        logger.info("Quiet hours (%d:00–%d:00), skipping fetch", config.QUIET_HOUR_START, config.QUIET_HOUR_END)
+        return
     logger.info("Starting fetch for %d accounts", len(config.ACCOUNTS))
     for handle in config.ACCOUNTS:
         await fetch_account(handle)
-        await asyncio.sleep(2)
+        delay = random.uniform(2, 7)
+        await asyncio.sleep(delay)
