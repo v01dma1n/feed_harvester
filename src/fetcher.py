@@ -15,7 +15,7 @@ async def _get_client() -> Client:
     if _client is not None:
         return _client
 
-    client = Client(language="en-US")
+    client = Client(language="en-US", enable_ui_metrics=True)
 
     if os.path.exists(config.SESSION_FILE):
         try:
@@ -58,7 +58,7 @@ async def fetch_account(handle: str) -> int:
         user = await client.get_user_by_screen_name(handle)
         tweets = await user.get_tweets("Tweets", count=config.MAX_TWEETS_PER_FETCH)
     except Exception as e:
-        if "cookie" in str(e).lower() or "auth" in str(e).lower() or "session" in str(e).lower():
+        if any(kw in str(e).lower() for kw in ("cookie", "auth", "session", "key_byte", "indices")):
             logger.warning("Session error for @%s, retrying with fresh login: %s", handle, e)
             try:
                 client = await _login_fresh()

@@ -1,17 +1,16 @@
 import logging
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from src import config, db
 
 logger = logging.getLogger(__name__)
 
-genai.configure(api_key=config.GEMINI_API_KEY)
-_model = genai.GenerativeModel(
-    model_name=config.GEMINI_MODEL,
-    system_instruction=(
-        "You are a concise news assistant summarizing Twitter activity for a technical reader. "
-        "For each account, write 2-4 sentences covering the main themes and notable posts. "
-        "Use plain text. No markdown. No bullet points. Keep each account summary under 100 words."
-    ),
+_client = genai.Client(api_key=config.GEMINI_API_KEY)
+
+_SYSTEM_INSTRUCTION = (
+    "You are a concise news assistant summarizing Twitter activity for a technical reader. "
+    "For each account, write 2-4 sentences covering the main themes and notable posts. "
+    "Use plain text. No markdown. No bullet points. Keep each account summary under 100 words."
 )
 
 TELEGRAM_LIMIT = 4096
@@ -40,7 +39,11 @@ async def summarize(tweets: list[dict]) -> str | None:
     grouped = _group_by_handle(tweets)
     prompt = _build_prompt(grouped)
     try:
-        response = await _model.generate_content_async(prompt)
+        response = await _client.aio.models.generate_content(
+            model=config.GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(system_instruction=_SYSTEM_INSTRUCTION),
+        )
         return response.text.strip()
     except Exception as e:
         logger.error("Gemini summarization failed: %s", e)
@@ -53,7 +56,11 @@ async def summarize_handle(handle: str, tweets: list[dict]) -> str | None:
     grouped = {handle: tweets}
     prompt = _build_prompt(grouped)
     try:
-        response = await _model.generate_content_async(prompt)
+        response = await _client.aio.models.generate_content(
+            model=config.GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(system_instruction=_SYSTEM_INSTRUCTION),
+        )
         return response.text.strip()
     except Exception as e:
         logger.error("Gemini expand failed for @%s: %s", handle, e)
