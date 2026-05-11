@@ -15,11 +15,15 @@ async def _noop_transaction_init(self, session, headers):
     self.home_page_response = None
     self.DEFAULT_ROW_INDEX = 0
     self.DEFAULT_KEY_BYTES_INDICES = []
-    self.key = ""
-    self.key_bytes = []
-    self.animation_key = ""
+    self.key = "noop"
+    self.key_bytes = [0] * 64
+    self.animation_key = "noop"
+
+def _noop_generate_transaction_id(self, method, path, **kwargs):
+    return ""
 
 ClientTransaction.init = _noop_transaction_init
+ClientTransaction.generate_transaction_id = _noop_generate_transaction_id
 
 _client: Client | None = None
 
