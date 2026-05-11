@@ -18,14 +18,11 @@ mkdir -p "$UNIT_DIR"
 cp "$SRC/systemd/feed-harvester.service" "$UNIT_DIR/"
 systemctl --user daemon-reload
 
-# Create/update venv
-VENV="$DEST/.venv"
-if [[ ! -d "$VENV" ]]; then
-    python3 -m venv "$VENV"
-    echo "Created venv at $VENV"
-fi
-"$VENV/bin/pip" install -q --upgrade pip
-"$VENV/bin/pip" install -q -r "$DEST/requirements.txt"
+PYTHON="$HOME/.pyenv/versions/ml-env/bin/python"
+PIP="$HOME/.pyenv/versions/ml-env/bin/pip"
+
+"$PIP" install -q --upgrade pip
+"$PIP" install -q -r "$DEST/requirements.txt"
 
 echo "Restarting feed-harvester service..."
 systemctl --user restart feed-harvester

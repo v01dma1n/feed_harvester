@@ -7,7 +7,7 @@ Type=simple
 WorkingDirectory=%h/bin/feed_harvester
 Environment="APP_ENV=PROD"
 Environment="PYTHONUNBUFFERED=1"
-ExecStart=%h/bin/feed_harvester/.venv/bin/python -m src.main
+ExecStart=%h/.pyenv/versions/ml-env/bin/python -m src.main
 Restart=on-failure
 RestartSec=30
 
