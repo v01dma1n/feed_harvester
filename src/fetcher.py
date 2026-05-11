@@ -15,7 +15,7 @@ async def _get_client() -> Client:
     if _client is not None:
         return _client
 
-    client = Client(language="en-US", enable_ui_metrics=True)
+    client = Client(language="en-US")
 
     if os.path.exists(config.SESSION_FILE):
         try:
