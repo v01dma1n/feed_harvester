@@ -3,9 +3,23 @@ import json
 import logging
 import os
 from twikit import Client
+from twikit.x_client_transaction.transaction import ClientTransaction
 from src import config, db
 
 logger = logging.getLogger(__name__)
+
+# twikit's JS-parsing for x-client-transaction-id is broken on Twitter's
+# current frontend (ondemand.s bundle no longer exists). Patch it to be
+# a no-op so fetches proceed using cookie auth without the header.
+async def _noop_transaction_init(self, session, headers):
+    self.home_page_response = None
+    self.DEFAULT_ROW_INDEX = 0
+    self.DEFAULT_KEY_BYTES_INDICES = []
+    self.key = ""
+    self.key_bytes = []
+    self.animation_key = ""
+
+ClientTransaction.init = _noop_transaction_init
 
 _client: Client | None = None
 
@@ -58,7 +72,7 @@ async def fetch_account(handle: str) -> int:
         user = await client.get_user_by_screen_name(handle)
         tweets = await user.get_tweets("Tweets", count=config.MAX_TWEETS_PER_FETCH)
     except Exception as e:
-        if any(kw in str(e).lower() for kw in ("cookie", "auth", "session", "key_byte", "indices")):
+        if any(kw in str(e).lower() for kw in ("cookie", "auth", "session")):
             logger.warning("Session error for @%s, retrying with fresh login: %s", handle, e)
             try:
                 client = await _login_fresh()
