@@ -46,4 +46,9 @@ ACCOUNTS: list[str] = [
 ]
 
 SESSION_FILE = os.getenv("SESSION_FILE", "twitter_session.json")
-DB_FILE = os.getenv("DB_FILE", str(Path.home() / "bin" / "db" / "feed_harvester.db"))
+_db_default = (
+    str(Path(__file__).parent.parent / "db" / "feed_harvester.db")
+    if app_env == "DEV"
+    else str(Path.home() / "bin" / "db" / "feed_harvester.db")
+)
+DB_FILE = os.getenv("DB_FILE", _db_default)
