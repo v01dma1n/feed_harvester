@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from twikit import Client
+from twikit.user import User
 from twikit.x_client_transaction.transaction import ClientTransaction
 from src import config, db
 
@@ -24,6 +25,49 @@ def _noop_generate_transaction_id(self, method, path, **kwargs):
 
 ClientTransaction.init = _noop_transaction_init
 ClientTransaction.generate_transaction_id = _noop_generate_transaction_id
+
+# twikit User.__init__ uses hard key access on legacy fields that Twitter
+# omits for some accounts. Patch __init__ to use .get() throughout.
+_orig_user_init = User.__init__
+
+def _safe_user_init(self, client, data):
+    legacy = data['legacy']
+    self._client = client
+    self.id = data['rest_id']
+    self.created_at = legacy.get('created_at')
+    self.name = legacy.get('name')
+    self.screen_name = legacy.get('screen_name')
+    self.profile_image_url = legacy.get('profile_image_url_https')
+    self.profile_banner_url = legacy.get('profile_banner_url')
+    self.url = legacy.get('url')
+    self.location = legacy.get('location')
+    self.description = legacy.get('description')
+    self.description_urls = legacy.get('entities', {}).get('description', {}).get('urls', [])
+    self.urls = legacy.get('entities', {}).get('url', {}).get('urls')
+    self.pinned_tweet_ids = legacy.get('pinned_tweet_ids_str', [])
+    self.is_blue_verified = data.get('is_blue_verified', False)
+    self.verified = legacy.get('verified', False)
+    self.possibly_sensitive = legacy.get('possibly_sensitive', False)
+    self.can_dm = legacy.get('can_dm', False)
+    self.can_media_tag = legacy.get('can_media_tag', False)
+    self.want_retweets = legacy.get('want_retweets', False)
+    self.default_profile = legacy.get('default_profile', False)
+    self.default_profile_image = legacy.get('default_profile_image', False)
+    self.has_custom_timelines = legacy.get('has_custom_timelines', False)
+    self.followers_count = legacy.get('followers_count', 0)
+    self.fast_followers_count = legacy.get('fast_followers_count', 0)
+    self.normal_followers_count = legacy.get('normal_followers_count', 0)
+    self.following_count = legacy.get('friends_count', 0)
+    self.favourites_count = legacy.get('favourites_count', 0)
+    self.listed_count = legacy.get('listed_count', 0)
+    self.media_count = legacy.get('media_count', 0)
+    self.statuses_count = legacy.get('statuses_count', 0)
+    self.is_translator = legacy.get('is_translator', False)
+    self.translator_type = legacy.get('translator_type')
+    self.withheld_in_countries = legacy.get('withheld_in_countries', [])
+    self.protected = legacy.get('protected', False)
+
+User.__init__ = _safe_user_init
 
 _client: Client | None = None
 
