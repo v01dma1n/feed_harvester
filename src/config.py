@@ -46,4 +46,4 @@ ACCOUNTS: list[str] = [
 ]
 
 SESSION_FILE = os.getenv("SESSION_FILE", "twitter_session.json")
-DB_FILE = os.getenv("DB_FILE", "feed_harvester.db")
+DB_FILE = os.getenv("DB_FILE", str(Path.home() / "bin" / "db" / "feed_harvester.db"))
