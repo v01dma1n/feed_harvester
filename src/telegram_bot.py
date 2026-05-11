@@ -111,6 +111,21 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text("\n".join(lines))
 
 
+async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _auth(update):
+        return
+    text = (
+        "Available commands:\n\n"
+        "/digest — summarize all unseen tweets and mark them seen\n"
+        "/expand <handle> — Gemini deep-dive on one account's unseen tweets\n"
+        "/raw <handle> — raw unseen tweet texts for one account\n"
+        "/since <handle> <Nd> — tweets from the last N days (e.g. /since karpathy 3d)\n"
+        "/status — unseen tweet count per account\n"
+        "/help — show this message"
+    )
+    await update.message.reply_text(text)
+
+
 def build_application() -> Application:
     app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("digest", cmd_digest_now))
@@ -118,4 +133,5 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("raw", cmd_raw))
     app.add_handler(CommandHandler("since", cmd_since))
     app.add_handler(CommandHandler("status", cmd_status))
+    app.add_handler(CommandHandler("help", cmd_help))
     return app
