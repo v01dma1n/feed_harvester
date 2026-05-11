@@ -4,8 +4,9 @@ A local Python daemon that monitors a fixed set of Twitter/X accounts, stores tw
 
 ## What it does
 
-- Fetches up to 20 recent tweets per account every 30 minutes via [twikit](https://github.com/d60/twikit)
+- Fetches 15–20 recent tweets per account every ~30 minutes (±5 min jitter) via [twikit](https://github.com/d60/twikit)
 - Deduplicates by tweet ID and stores unseen tweets in SQLite
+- Skips fetching during quiet hours (01:00–06:00 by default)
 - At 08:00 local time, sends a Gemini-summarized digest to Telegram
 - Exposes a Telegram bot for on-demand queries
 
@@ -34,6 +35,8 @@ feed-harvester/
 ├── .env.example                  # env var template
 ├── .gitignore
 ├── requirements.txt
+├── db/                           # DEV database (gitignored)
+├── log/                          # log dir placeholder
 ├── scripts/
 │   └── deploy.sh                 # deploy source → ~/bin/feed_harvester
 ├── systemd/
@@ -50,6 +53,15 @@ feed-harvester/
 
 **Source:** `~/projects/OpenSource/feed_harvester/`
 **Production runtime:** `~/bin/feed_harvester/`
+
+## Database locations
+
+| Environment | Path |
+|---|---|
+| DEV | `~/projects/OpenSource/feed_harvester/db/feed_harvester.db` |
+| PROD | `~/bin/db/feed_harvester.db` |
+
+Both are gitignored.
 
 ## Setup
 
@@ -74,7 +86,7 @@ TELEGRAM_CHAT_ID=
 
 ### 2. Seed the Twitter session
 
-tao13's IP is blocked by Cloudflare from Twitter's login endpoint. You must seed the session manually from a browser:
+The server IP is blocked by Cloudflare from Twitter's login endpoint. You must seed the session manually from a browser:
 
 1. Log into x.com in your browser
 2. Open DevTools → Application → Cookies → `https://x.com`
@@ -90,7 +102,7 @@ cat > ~/bin/feed_harvester/twitter_session.json << 'EOF'
 EOF
 ```
 
-The session file is gitignored and never committed. Username/password in `.env` are only used as a fallback if the session file is missing or expired.
+The session file is gitignored and never committed. Username/password in `.env` are only used as a fallback if the session file is missing or expired. Sessions typically last 7–30 days.
 
 ### 3. Deploy and start
 
@@ -103,12 +115,12 @@ systemctl --user enable feed-harvester
 
 ## Development vs production
 
-The `APP_ENV` environment variable controls which secrets file is loaded:
+The `APP_ENV` environment variable controls which secrets file and database are used:
 
-| APP_ENV | Secrets file |
-|---|---|
-| `DEV` (default) | `~/.feed_harvester_dev.env` |
-| `PROD` | `~/.feed_harvester.env` |
+| APP_ENV | Secrets file | Database |
+|---|---|---|
+| `DEV` (default) | `~/.feed_harvester_dev.env` | `<project>/db/feed_harvester.db` |
+| `PROD` | `~/.feed_harvester.env` | `~/bin/db/feed_harvester.db` |
 
 The systemd unit sets `APP_ENV=PROD`. Running manually from the terminal uses DEV mode.
 
@@ -138,6 +150,16 @@ systemctl --user restart feed-harvester
 systemctl --user status feed-harvester
 journalctl --user -u feed-harvester -f
 ```
+
+## Fetch behaviour
+
+| Parameter | Default | Env var |
+|---|---|---|
+| Fetch interval | 30 min | `FETCH_INTERVAL_MINUTES` |
+| Interval jitter | ±5 min | `FETCH_INTERVAL_JITTER_MINUTES` |
+| Tweets per fetch | 15–20 | `MIN_TWEETS_PER_FETCH` / `MAX_TWEETS_PER_FETCH` |
+| Inter-account delay | 2–7s random | — |
+| Quiet hours | 01:00–06:00 | `QUIET_HOUR_START` / `QUIET_HOUR_END` |
 
 ## Telegram bot commands
 
@@ -174,7 +196,3 @@ Two monkey-patches are applied at startup in `src/fetcher.py`:
 2. **`User.__init__`** — Twitter's API omits some user fields (e.g. `withheld_in_countries`) for certain accounts. All field access is patched to use `.get()` with safe defaults.
 
 These patches are in source and survive twikit reinstalls.
-
-### Session expiry
-
-Twitter sessions typically last 7–30 days. When the session expires, re-seed `twitter_session.json` from your browser as described in Setup.
