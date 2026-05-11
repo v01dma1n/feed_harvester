@@ -1,0 +1,15 @@
+[Unit]
+Description=Feed Harvester Twitter Digest Bot
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/bin/feed_harvester
+Environment="APP_ENV=PROD"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=%h/bin/feed_harvester/.venv/bin/python -m src.main
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

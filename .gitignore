@@ -1,0 +1,9 @@
+log/
+tmp/
+*.db
+*.code-workspace
+*.*~
+__pycache__/
+*.pyc
+.venv/
+twitter_session.json
