@@ -170,6 +170,7 @@ journalctl --user -u feed-harvester -f
 | `/raw <handle>` | Return raw unseen tweet texts for that account |
 | `/since <handle> <Nd>` | Tweets from the last N days regardless of seen status |
 | `/status` | Count of unseen tweets per account |
+| `/help` | List all available commands |
 
 ## SQLite schema
 
