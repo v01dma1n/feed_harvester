@@ -3,33 +3,28 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$(dirname "$SCRIPT_DIR")"
-DEST="$HOME/bin/feed_harvester"
+REMOTE="tao14"
+REMOTE_DEST="$REMOTE:~/bin/feed_harvester"
+PIP="~/.pyenv/versions/ml-env/bin/pip"
 
-echo "Deploying feed_harvester DEV → PROD..."
+echo "Deploying feed_harvester to $REMOTE..."
 
-mkdir -p "$DEST/src"
-
-cp "$SRC/src/"*.py "$DEST/src/"
-cp "$SRC/requirements.txt" "$DEST/"
+rsync -av "$SRC/src/" "$REMOTE_DEST/src/"
+scp "$SRC/requirements.txt" "$REMOTE_DEST/requirements.txt"
 
 # Install/update systemd unit
-UNIT_DIR="$HOME/.config/systemd/user"
-mkdir -p "$UNIT_DIR"
-cp "$SRC/systemd/feed-harvester.service" "$UNIT_DIR/"
-systemctl --user daemon-reload
+scp "$SRC/systemd/feed-harvester.service" "$REMOTE:~/.config/systemd/user/feed-harvester.service"
+ssh "$REMOTE" "systemctl --user daemon-reload"
 
-PYTHON="$HOME/.pyenv/versions/ml-env/bin/python"
-PIP="$HOME/.pyenv/versions/ml-env/bin/pip"
+# Install dependencies
+ssh "$REMOTE" "$PIP install -q --upgrade pip && $PIP install -q -r ~/bin/feed_harvester/requirements.txt"
 
-"$PIP" install -q --upgrade pip
-"$PIP" install -q -r "$DEST/requirements.txt"
+echo "Restarting feed-harvester service on $REMOTE..."
+ssh "$REMOTE" "systemctl --user restart feed-harvester"
 
-echo "Restarting feed-harvester service..."
-systemctl --user restart feed-harvester
-
-if systemctl --user is-active --quiet feed-harvester; then
+if ssh "$REMOTE" "systemctl --user is-active --quiet feed-harvester"; then
     echo "Deployment successful."
 else
     echo "Service failed to start. Check logs:"
-    echo "  journalctl --user -u feed-harvester -n 20"
+    echo "  ssh $REMOTE 'journalctl --user -u feed-harvester -n 20'"
 fi
