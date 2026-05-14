@@ -1,6 +1,9 @@
+import logging
 import aiosqlite
 from datetime import datetime, timezone
 from src import config
+
+logger = logging.getLogger(__name__)
 
 CREATE_TWEETS = """
 CREATE TABLE IF NOT EXISTS tweets (
@@ -17,12 +20,32 @@ CREATE_IDX_AUTHOR = "CREATE INDEX IF NOT EXISTS idx_author ON tweets(author_hand
 CREATE_IDX_DIGESTED = "CREATE INDEX IF NOT EXISTS idx_digested ON tweets(digested_at);"
 
 
+async def _migrate_created_at(conn: aiosqlite.Connection) -> None:
+    async with conn.execute("SELECT tweet_id, created_at FROM tweets") as cur:
+        rows = await cur.fetchall()
+    updated = 0
+    for tweet_id, created_at in rows:
+        if not created_at or created_at[0].isdigit():
+            continue  # already ISO 8601
+        try:
+            dt = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
+            iso = dt.astimezone(timezone.utc).isoformat()
+            await conn.execute("UPDATE tweets SET created_at = ? WHERE tweet_id = ?", (iso, tweet_id))
+            updated += 1
+        except ValueError:
+            pass
+    if updated:
+        await conn.commit()
+        logger.info("Migrated %d created_at values to ISO 8601", updated)
+
+
 async def init_db() -> None:
     async with aiosqlite.connect(config.DB_FILE) as db:
         await db.execute(CREATE_TWEETS)
         await db.execute(CREATE_IDX_AUTHOR)
         await db.execute(CREATE_IDX_DIGESTED)
         await db.commit()
+        await _migrate_created_at(db)
 
 
 async def insert_tweet(tweet_id: str, author_handle: str, text: str,

@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from twikit import Client
 from twikit.user import User
 from twikit.x_client_transaction.transaction import ClientTransaction
@@ -116,6 +116,16 @@ def _tweet_url(handle: str, tweet_id: str) -> str:
     return f"https://x.com/{handle}/status/{tweet_id}"
 
 
+def _normalize_date(raw: str) -> str:
+    # twikit returns Twitter's "Mon Jan 01 00:00:00 +0000 2024" format;
+    # convert to ISO 8601 so SQLite datetime comparisons work correctly.
+    try:
+        dt = datetime.strptime(raw, "%a %b %d %H:%M:%S %z %Y")
+        return dt.astimezone(timezone.utc).isoformat()
+    except ValueError:
+        return raw
+
+
 def _is_quiet_hours() -> bool:
     hour = datetime.now().hour
     start, end = config.QUIET_HOUR_START, config.QUIET_HOUR_END
@@ -154,7 +164,7 @@ async def fetch_account(handle: str) -> int:
             tweet_id=tweet.id,
             author_handle=handle,
             text=tweet.text,
-            created_at=str(tweet.created_at),
+            created_at=_normalize_date(str(tweet.created_at)),
             url=_tweet_url(handle, tweet.id),
         )
         if stored:
